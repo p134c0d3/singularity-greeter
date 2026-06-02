@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="dev.sinty.greeter" path="/dev/sinty/greeter/">
+    <key name="accent-color" type="s">
+      <default>'blue'</default>
+      <summary>Accent Color</summary>
+      <description>The accent color to use (blue, teal, green, yellow, orange, red, pink, purple, slate, wallpaper)</description>
+    </key>
+    <key name="background-uri" type="s">
+      <default>''</default>
+      <summary>Background URI</summary>
+      <description>URI of the background image. If empty, uses the default shell background.</description>
+    </key>
+    <key name="last-user" type="s">
+      <default>''</default>
+      <summary>Last user</summary>
+      <description>Username of the last account that logged in, preselected in the user picker.</description>
+    </key>
+  </schema>
+</schemalist>

@@ -1,0 +1,7 @@
+# List of source files containing translatable strings.
+src/app.vala
+src/greeter_window.vala
+src/greeter_topbar.vala
+src/user_card.vala
+src/power_menu_dialog.vala
+src/greetd_client.vala
