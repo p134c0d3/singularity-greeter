@@ -9,6 +9,7 @@ namespace Singularity.Greeter {
         private GLib.Settings? _greeter_settings = null;
 
         private Box _cards_box;
+        private Gtk.Picture _bg_picture;
         private Label _big_time;
         private Label _date_label;
         private uint _clock_timer_id = 0;
@@ -39,6 +40,7 @@ namespace Singularity.Greeter {
             bg_picture.hexpand = true;
             bg_picture.vexpand = true;
             bg_picture.content_fit = ContentFit.COVER;
+            _bg_picture = bg_picture;
             load_wallpaper(bg_picture);
             overlay.set_child(bg_picture);
 
@@ -99,6 +101,7 @@ namespace Singularity.Greeter {
                 c.set_selected(c == card);
             }
             apply_user_accent(card.user);
+            apply_user_background(card.user);
             card.password_row.grab_focus();
         }
 
@@ -130,6 +133,7 @@ namespace Singularity.Greeter {
                 if (u.realname == "") u.realname = u.username;
                 u.avatar = find_avatar(u.username);
                 u.accent = read_user_accent(u.username);
+                u.background = read_user_background(u.username);
                 found += u;
             }
             Posix.endpwent();
@@ -141,6 +145,7 @@ namespace Singularity.Greeter {
                 u.realname = u.username;
                 u.avatar = find_avatar(u.username);
                 u.accent = read_user_accent(u.username);
+                u.background = read_user_background(u.username);
                 found += u;
             }
             _users = found;
@@ -164,6 +169,37 @@ namespace Singularity.Greeter {
                 } catch { }
             }
             return "";
+        }
+
+        // Per-user background URI lives in the same AccountsService keyfile,
+        // written by the session shell. Empty falls back to the system wallpaper.
+        private string read_user_background(string username) {
+            string path = "/var/lib/AccountsService/users/" + username;
+            if (GLib.FileUtils.test(path, GLib.FileTest.EXISTS)) {
+                var kf = new GLib.KeyFile();
+                try {
+                    kf.load_from_file(path, GLib.KeyFileFlags.NONE);
+                    if (kf.has_group("com.singularity.Desktop")
+                        && kf.has_key("com.singularity.Desktop", "Background")) {
+                        return kf.get_string("com.singularity.Desktop", "Background");
+                    }
+                } catch { }
+            }
+            return "";
+        }
+
+        private void apply_user_background(GreeterUser u) {
+            if (u.background == "") {
+                load_wallpaper(_bg_picture);
+                return;
+            }
+            string path = u.background.has_prefix("file://")
+                ? u.background.substring(7) : u.background;
+            if (GLib.FileUtils.test(path, GLib.FileTest.EXISTS)) {
+                set_blurred(_bg_picture, path);
+            } else {
+                load_wallpaper(_bg_picture);
+            }
         }
 
         private void apply_user_accent(GreeterUser u) {
@@ -253,13 +289,19 @@ namespace Singularity.Greeter {
             if (uri != "") {
                 string path = uri.has_prefix("file://") ? uri.substring(7) : uri;
                 if (GLib.FileUtils.test(path, GLib.FileTest.EXISTS)) {
-                    try {
-                        var small = new Gdk.Pixbuf.from_file_at_scale(path, 96, -1, true);
-                        picture.set_paintable(Gdk.Texture.for_pixbuf(small));
-                    } catch (GLib.Error e) {
-                        picture.set_file(GLib.File.new_for_path(path));
-                    }
+                    set_blurred(picture, path);
                 }
+            }
+        }
+
+        // Downscaling to a tiny pixbuf and letting content-fit upscale it yields
+        // a cheap blur, which doubles as privacy for the per-user wallpaper.
+        private void set_blurred(Gtk.Picture picture, string path) {
+            try {
+                var small = new Gdk.Pixbuf.from_file_at_scale(path, 96, -1, true);
+                picture.set_paintable(Gdk.Texture.for_pixbuf(small));
+            } catch (GLib.Error e) {
+                picture.set_file(GLib.File.new_for_path(path));
             }
         }
 

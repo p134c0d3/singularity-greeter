@@ -10,6 +10,7 @@ namespace Singularity.Greeter {
         public string realname;
         public string? avatar;
         public string accent; // "" means use the system default
+        public string background; // "" means use the system default
     }
 
     // A per-user card: avatar and name are always visible, the login fields sit
