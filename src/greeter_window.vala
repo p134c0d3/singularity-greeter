@@ -219,7 +219,8 @@ namespace Singularity.Greeter {
 
         private string desktop_accent() {
             try {
-                var s = new GLib.Settings("dev.sinty.desktop");
+                var s = Singularity.Core.safe_settings("dev.sinty.desktop");
+                if (s == null) return "";
                 string a = s.get_string("accent-color");
                 if (a == "custom") return s.get_string("custom-accent-color");
                 if (a == "wallpaper") return "";
@@ -279,10 +280,10 @@ namespace Singularity.Greeter {
 
         private void load_wallpaper(Gtk.Picture picture) {
             string uri = "";
-            try {
-                var s = new GLib.Settings("dev.sinty.desktop");
+            var s = Singularity.Core.safe_settings("dev.sinty.desktop");
+            if (s != null) {
                 uri = s.get_string("background-picture-uri");
-            } catch { }
+            }
             if (uri == "" && _greeter_settings != null) {
                 try { uri = _greeter_settings.get_string("background-uri"); } catch { }
             }
