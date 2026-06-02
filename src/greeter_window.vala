@@ -206,7 +206,20 @@ namespace Singularity.Greeter {
 
         private Gee.ArrayList<Singularity.Core.AppSettingOption> scan_sessions() {
             var options = new Gee.ArrayList<Singularity.Core.AppSettingOption>();
-            string[] dirs = { "/usr/share/wayland-sessions", "/usr/share/xsessions" };
+            var seen_bases = new Gee.HashSet<string>();
+            string xdg = GLib.Environment.get_variable("XDG_DATA_DIRS") ?? "";
+            foreach (var b in xdg.split(":")) {
+                if (b != "") seen_bases.add(b);
+            }
+            seen_bases.add("/opt/local/share");
+            seen_bases.add("/usr/local/share");
+            seen_bases.add("/usr/share");
+
+            string[] dirs = {};
+            foreach (var b in seen_bases) {
+                dirs += GLib.Path.build_filename(b, "wayland-sessions");
+                dirs += GLib.Path.build_filename(b, "xsessions");
+            }
             foreach (var d in dirs) {
                 if (!GLib.FileUtils.test(d, GLib.FileTest.IS_DIR)) continue;
                 try {
