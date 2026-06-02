@@ -253,7 +253,12 @@ namespace Singularity.Greeter {
             if (uri != "") {
                 string path = uri.has_prefix("file://") ? uri.substring(7) : uri;
                 if (GLib.FileUtils.test(path, GLib.FileTest.EXISTS)) {
-                    picture.set_file(GLib.File.new_for_path(path));
+                    try {
+                        var small = new Gdk.Pixbuf.from_file_at_scale(path, 96, -1, true);
+                        picture.set_paintable(Gdk.Texture.for_pixbuf(small));
+                    } catch (GLib.Error e) {
+                        picture.set_file(GLib.File.new_for_path(path));
+                    }
                 }
             }
         }
