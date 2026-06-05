@@ -5,8 +5,8 @@ namespace Singularity.Greeter {
 
     public class GreetdClient : GLib.Object {
         private SocketConnection? connection;
-        private DataInputStream? input_stream;
-        private DataOutputStream? output_stream;
+        private InputStream? input_stream;
+        private OutputStream? output_stream;
 
         public signal void auth_message(string msg_type, string? auth_message);
         public signal void auth_error(string error_message);
@@ -22,21 +22,41 @@ namespace Singularity.Greeter {
             var client = new SocketClient();
             connection = yield client.connect_async(address);
 
-            input_stream = new DataInputStream(connection.input_stream);
-            output_stream = new DataOutputStream(connection.output_stream);
+            input_stream = connection.input_stream;
+            output_stream = connection.output_stream;
 
             read_loop.begin();
+        }
+
+        private async uint8[]? read_exact(size_t n) throws Error {
+            var buf = new uint8[n];
+            size_t got = 0;
+            while (got < n) {
+                ssize_t r = yield input_stream.read_async(buf[got:n]);
+                if (r <= 0) {
+                    return null;
+                }
+                got += r;
+            }
+            return buf;
         }
 
         private async void read_loop() {
             try {
                 while (true) {
-                    string? line = yield input_stream.read_line_async();
-                    if (line == null) break;
+                    uint8[]? header = yield read_exact(4);
+                    if (header == null) break;
+
+                    uint32 len = 0;
+                    Memory.copy(&len, header, 4);
+                    if (len == 0) continue;
+
+                    uint8[]? payload = yield read_exact(len);
+                    if (payload == null) break;
 
                     var parser = new Parser();
                     try {
-                        parser.load_from_data(line);
+                        parser.load_from_data((string) payload, (ssize_t) len);
                         var node = parser.get_root();
                         if (node == null || node.get_node_type() != Json.NodeType.OBJECT) {
                             continue;
@@ -65,6 +85,14 @@ namespace Singularity.Greeter {
             }
         }
 
+        private async void send_request(string json) throws Error {
+            uint32 len = (uint32) json.length;
+            var header = new uint8[4];
+            Memory.copy(header, &len, 4);
+            yield output_stream.write_all_async(header, Priority.DEFAULT, null, null);
+            yield output_stream.write_all_async(json.data, Priority.DEFAULT, null, null);
+        }
+
         public async void send_response(string? response) throws Error {
             var builder = new Json.Builder();
             builder.begin_object();
@@ -80,13 +108,11 @@ namespace Singularity.Greeter {
 
             var generator = new Generator();
             generator.set_root(builder.get_root());
-            string json = generator.to_data(null);
-
-            yield output_stream.write_all_async((json + "\n").data, 0, null, null);
+            yield send_request(generator.to_data(null));
         }
 
         public async void create_session(string username) throws Error {
-             var builder = new Json.Builder();
+            var builder = new Json.Builder();
             builder.begin_object();
             builder.set_member_name("type");
             builder.add_string_value("create_session");
@@ -96,9 +122,7 @@ namespace Singularity.Greeter {
 
             var generator = new Generator();
             generator.set_root(builder.get_root());
-            string json = generator.to_data(null);
-
-            yield output_stream.write_all_async((json + "\n").data, 0, null, null);
+            yield send_request(generator.to_data(null));
         }
 
         public async void start_session(string[] cmd) throws Error {
@@ -116,9 +140,7 @@ namespace Singularity.Greeter {
 
             var generator = new Generator();
             generator.set_root(builder.get_root());
-            string json = generator.to_data(null);
-
-            yield output_stream.write_all_async((json + "\n").data, 0, null, null);
+            yield send_request(generator.to_data(null));
         }
     }
 }
