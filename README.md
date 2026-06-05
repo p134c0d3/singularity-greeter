@@ -12,6 +12,7 @@ The login greeter for the Singularity Desktop, built on greetd and libsingularit
 - gtk4-layer-shell (`gtk4-layer-shell-0`)
 - [libsingularity](https://github.com/singularityos-lab/libsingularity)
 - [greetd](https://git.sr.ht/~kennylevinsen/greetd) at runtime
+- accountsservice at runtime (per-user accent color, wallpaper and avatar)
 
 ## Build & Install
 
