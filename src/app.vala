@@ -26,6 +26,7 @@ namespace Singularity.Greeter {
         }
 
         protected override void activate() {
+            Singularity.Style.StyleManager.pin_brand_themes();
             Singularity.Style.StyleManager.get_default().load_theme();
 
             // Greeter-specific local styles, layered above the shared theme.
