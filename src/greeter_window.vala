@@ -50,23 +50,29 @@ namespace Singularity.Greeter {
             scrim.vexpand = true;
             overlay.add_overlay(scrim);
 
-            var main_box = new Box(Orientation.VERTICAL, 40);
+            var main_box = new Box(Orientation.HORIZONTAL, 40);
             main_box.valign = Align.CENTER;
             main_box.halign = Align.CENTER;
             overlay.add_overlay(main_box);
 
             var clock_box = new Box(Orientation.VERTICAL, 4);
-            clock_box.halign = Align.CENTER;
+            clock_box.halign = Align.END;
+            clock_box.valign = Align.CENTER;
             _big_time = new Label("");
             _big_time.add_css_class("greeter-clock");
+            _big_time.halign = Align.END;
+            _big_time.xalign = 1.0f;
             clock_box.append(_big_time);
             _date_label = new Label("");
             _date_label.add_css_class("greeter-date");
+            _date_label.halign = Align.END;
+            _date_label.xalign = 1.0f;
             clock_box.append(_date_label);
             main_box.append(clock_box);
 
             _cards_box = new Box(Orientation.VERTICAL, 12);
             _cards_box.halign = Align.CENTER;
+            _cards_box.valign = Align.CENTER;
             main_box.append(_cards_box);
 
             update_clock();
@@ -299,11 +305,62 @@ namespace Singularity.Greeter {
         // a cheap blur, which doubles as privacy for the per-user wallpaper.
         private void set_blurred(Gtk.Picture picture, string path) {
             try {
-                var small = new Gdk.Pixbuf.from_file_at_scale(path, 96, -1, true);
-                picture.set_paintable(Gdk.Texture.for_pixbuf(small));
+                var src = new Gdk.Pixbuf.from_file_at_scale(path, 960, -1, true);
+                var blurred = box_blur(box_blur(src, 16), 16);
+                picture.set_paintable(Gdk.Texture.for_pixbuf(blurred));
             } catch (GLib.Error e) {
                 picture.set_file(GLib.File.new_for_path(path));
             }
+        }
+
+        private Gdk.Pixbuf box_blur(Gdk.Pixbuf src, int radius) {
+            int w = src.get_width();
+            int h = src.get_height();
+            int nch = src.get_n_channels();
+            int srs = src.get_rowstride();
+            unowned uint8[] s = src.get_pixels();
+            int count = 2 * radius + 1;
+
+            var tmp = new Gdk.Pixbuf(Gdk.Colorspace.RGB, src.get_has_alpha(), 8, w, h);
+            int trs = tmp.get_rowstride();
+            unowned uint8[] t = tmp.get_pixels();
+            for (int y = 0; y < h; y++) {
+                int row = y * srs;
+                int trow = y * trs;
+                for (int c = 0; c < nch; c++) {
+                    int sum = 0;
+                    for (int k = -radius; k <= radius; k++) {
+                        int xx = k < 0 ? 0 : (k >= w ? w - 1 : k);
+                        sum += s[row + xx * nch + c];
+                    }
+                    for (int x = 0; x < w; x++) {
+                        t[trow + x * nch + c] = (uint8) (sum / count);
+                        int xout = x - radius; if (xout < 0) xout = 0;
+                        int xin = x + radius + 1; if (xin >= w) xin = w - 1;
+                        sum += s[row + xin * nch + c] - s[row + xout * nch + c];
+                    }
+                }
+            }
+
+            var dst = new Gdk.Pixbuf(Gdk.Colorspace.RGB, src.get_has_alpha(), 8, w, h);
+            int drs = dst.get_rowstride();
+            unowned uint8[] d = dst.get_pixels();
+            for (int x = 0; x < w; x++) {
+                for (int c = 0; c < nch; c++) {
+                    int sum = 0;
+                    for (int k = -radius; k <= radius; k++) {
+                        int yy = k < 0 ? 0 : (k >= h ? h - 1 : k);
+                        sum += t[yy * trs + x * nch + c];
+                    }
+                    for (int y = 0; y < h; y++) {
+                        d[y * drs + x * nch + c] = (uint8) (sum / count);
+                        int yout = y - radius; if (yout < 0) yout = 0;
+                        int yin = y + radius + 1; if (yin >= h) yin = h - 1;
+                        sum += t[yin * trs + x * nch + c] - t[yout * trs + x * nch + c];
+                    }
+                }
+            }
+            return dst;
         }
 
         private bool update_clock() {

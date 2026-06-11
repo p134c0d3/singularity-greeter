@@ -22,19 +22,43 @@
 /* Per-user picker card: identical surface to the logout/shell modal card
    (.dialog-overlay .dialog-content): same background, border, radius, shadow. */
 .greeter-user-card {
-    background-color: @window_tint;
-    border-radius: 20px;
-    border: 1px solid alpha(white, 0.10);
-    box-shadow: 0 12px 48px alpha(@shadow_color, 0.55);
-    padding: 20px;
+    background-color: @surface_raised;
+    border-radius: 24px;
+    border: 1px solid alpha(white, 0.08);
+    box-shadow: 0 16px 48px alpha(@shadow_color, 0.6);
+    padding: 10px;
 }
 .greeter-user-card > button.flat {
     border-radius: 12px;
-    padding: 6px 10px;
+    padding: 4px 6px;
 }
 .greeter-user-card .greeter-username {
     margin: 0;
     font-size: 18px;
+    font-weight: 700;
+}
+.greeter-avatar {
+    border-radius: 999px;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    background-color: transparent;
+}
+.greeter-window .greeter-gear {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 999px;
+    background-color: alpha(white, 0.08);
+    color: white;
+    border: none;
+    outline: none;
+    box-shadow: none;
+}
+.greeter-window .greeter-gear:hover { background-color: alpha(white, 0.16); }
+.greeter-session-popover > contents {
+    padding: 4px;
+    border-radius: 12px;
 }
 
 .greeter-username {
@@ -46,7 +70,7 @@
 }
 
 .greeter-clock {
-    font-size: 120px;
+    font-size: 60px;
     font-weight: 900;
     color: white;
     text-shadow: 0 4px 16px alpha(black, 0.5);
@@ -92,15 +116,15 @@
 }
 
 .greeter-window .pill {
-    min-width: 280px;
-    padding: 10px 24px;
+    min-width: 0;
+    padding: 7px 18px;
     border-radius: 999px;
     font-weight: 600;
 }
 
 .greeter-window button.suggested-action {
-    min-width: 280px;
-    padding: 10px 24px;
+    min-width: 0;
+    padding: 7px 18px;
     border-radius: 999px;
     font-weight: 600;
 }

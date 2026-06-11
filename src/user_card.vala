@@ -30,15 +30,16 @@ namespace Singularity.Greeter {
             user = u;
             add_css_class("greeter-user-card");
             halign = Align.CENTER;
-            width_request = 360;
+            width_request = 300;
+            if (sessions.size > 0) session = sessions.get(0).id;
 
-            var header = new Box(Orientation.HORIZONTAL, 12);
-            header.halign = Align.CENTER;
+            var header = new Box(Orientation.HORIZONTAL, 10);
+            header.halign = Align.START;
             var img = new Gtk.Image();
-            img.pixel_size = 56;
+            img.pixel_size = 46;
             img.add_css_class("greeter-avatar");
             if (u.avatar != null) img.set_from_file(u.avatar);
-            else img.set_from_icon_name("avatar-default-symbolic");
+            else img.set_from_icon_name("starred-symbolic");
             header.append(img);
             var name = new Label(u.realname != "" ? u.realname : u.username);
             name.add_css_class("greeter-username");
@@ -55,17 +56,11 @@ namespace Singularity.Greeter {
             revealer.transition_type = RevealerTransitionType.SLIDE_DOWN;
             revealer.transition_duration = 220;
 
-            var fields = new Box(Orientation.VERTICAL, 12);
+            var fields = new Box(Orientation.VERTICAL, 10);
             var group = new PreferencesGroup();
             password_row = new PasswordRow(_("Password"));
             password_row.entry_activated.connect(() => login_requested());
             group.add_row(password_row);
-            if (sessions.size > 0) {
-                var session_row = new Singularity.Widgets.SelectionRow.with_options(
-                    _("Session"), sessions, "");
-                session_row.selected.connect((id) => { session = id; });
-                group.add_row(session_row);
-            }
             fields.append(group);
 
             status_label = new Label("");
@@ -74,12 +69,40 @@ namespace Singularity.Greeter {
             status_label.wrap = true;
             fields.append(status_label);
 
+            var bottom = new Box(Orientation.HORIZONTAL, 8);
             var signin = new Button.with_label(_("Sign In"));
             signin.add_css_class("pill");
             signin.add_css_class("suggested-action");
-            signin.halign = Align.CENTER;
+            signin.hexpand = true;
             signin.clicked.connect(() => login_requested());
-            fields.append(signin);
+            bottom.append(signin);
+
+            if (sessions.size > 0) {
+                var gear = new Button.from_icon_name("emblem-system-symbolic");
+                gear.add_css_class("circular-button");
+                gear.add_css_class("greeter-gear");
+                gear.valign = Align.CENTER;
+                gear.halign = Align.CENTER;
+                gear.set_size_request(44, 44);
+                gear.tooltip_text = _("Session");
+
+                var pop = new Gtk.Popover();
+                pop.set_parent(gear);
+                pop.add_css_class("greeter-session-popover");
+                var pbox = new Box(Orientation.VERTICAL, 2);
+                foreach (var s in sessions) {
+                    var item = new Button.with_label(s.label);
+                    item.add_css_class("flat");
+                    item.halign = Align.FILL;
+                    string sid = s.id;
+                    item.clicked.connect(() => { session = sid; pop.popdown(); });
+                    pbox.append(item);
+                }
+                pop.set_child(pbox);
+                gear.clicked.connect(() => pop.popup());
+                bottom.append(gear);
+            }
+            fields.append(bottom);
 
             revealer.set_child(fields);
             append(revealer);
