@@ -1,51 +1,42 @@
-project('singularity-greeter', ['vala', 'c'],
+project('singularity-greeter', 'c',
   version: '0.1.0',
-  meson_version: '>= 0.59.0'
+  meson_version: '>= 0.59.0',
 )
 
-i18n = import('i18n')
-add_project_arguments('-DGETTEXT_PACKAGE="singularity-greeter"', language: 'c')
 add_project_arguments('-D_GNU_SOURCE', language: 'c')
-add_project_arguments('--pkg=posix', language: 'vala')
-subdir('po')
 
-gnome = import('gnome')
+wayland_scanner = find_program('wayland-scanner')
 
-gtk_dep        = dependency('gtk4')
-gio_unix_dep   = dependency('gio-unix-2.0')
-gee_dep        = dependency('gee-0.8')
-json_dep       = dependency('json-glib-1.0')
-layershell_dep = dependency('gtk4-layer-shell-0')
+wl_client_dep = dependency('wayland-client')
+xkb_dep       = dependency('xkbcommon')
+glib_dep      = dependency('glib-2.0')
+gio_dep       = dependency('gio-2.0')
+json_dep      = dependency('json-glib-1.0')
 
-libsingularity_dep = dependency('singularity-1.0',
-  fallback: ['libsingularity', 'libsingularity_dep']
+loginui_dep = dependency('singularity-loginui',
+  fallback: ['singularity-loginui', 'loginui_dep']
 )
 
-if not meson.is_subproject() and libsingularity_dep.type_name() == 'internal'
-  libsingularity_vapi_dir = join_paths(meson.project_build_root(), 'subprojects', 'libsingularity')
-  add_project_arguments(['--vapidir=' + libsingularity_vapi_dir], language: 'vala')
-endif
+xdg_c = custom_target('xdg-shell-protocol.c',
+  output: 'xdg-shell-protocol.c', input: 'protocols/xdg-shell.xml',
+  command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'])
+xdg_h = custom_target('xdg-shell-client-protocol.h',
+  output: 'xdg-shell-client-protocol.h', input: 'protocols/xdg-shell.xml',
+  command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@'])
 
-resources = gnome.compile_resources(
-  'singularity-greeter-resources',
-  'resources/dev.sinty.greeter.gresource.xml',
-  source_dir: join_paths(meson.current_source_dir(), 'resources')
-)
-
-sources = files(
-  'src/main.vala',
-  'src/app.vala',
-  'src/greeter_window.vala',
-  'src/user_card.vala',
-  'src/greeter_topbar.vala',
-  'src/power_menu_dialog.vala',
-  'src/greetd_client.vala',
-)
+ls_c = custom_target('wlr-layer-shell-unstable-v1-protocol.c',
+  output: 'wlr-layer-shell-unstable-v1-protocol.c',
+  input: 'protocols/wlr-layer-shell-unstable-v1.xml',
+  command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'])
+ls_h = custom_target('wlr-layer-shell-unstable-v1-client-protocol.h',
+  output: 'wlr-layer-shell-unstable-v1-client-protocol.h',
+  input: 'protocols/wlr-layer-shell-unstable-v1.xml',
+  command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@'])
 
 executable('singularity-greeter',
-  sources + [resources],
-  dependencies: [gtk_dep, gio_unix_dep, gee_dep, json_dep, layershell_dep, libsingularity_dep],
-  install: true
+  ['src/greeter_main.c', xdg_c, xdg_h, ls_c, ls_h],
+  dependencies: [wl_client_dep, xkb_dep, glib_dep, gio_dep, json_dep, loginui_dep],
+  install: true,
 )
 
 install_data('data/dev.sinty.greeter.gschema.xml',
