@@ -52,6 +52,7 @@ static size_t password_len = 0;
 static char pending_password[1024];
 static char status_text[128] = "";
 static bool status_error = false;
+static bool awaiting_auth = false;
 
 static int greetd_fd = -1;
 static bool preview = false;
@@ -273,6 +274,13 @@ static void greetd_post_response(const char *response) {
     greetd_send_object(b);
 }
 
+static void greetd_cancel_session(void) {
+    JsonBuilder *b = json_builder_new();
+    json_builder_begin_object(b);
+    json_builder_set_member_name(b, "type"); json_builder_add_string_value(b, "cancel_session");
+    greetd_send_object(b);
+}
+
 static void greetd_start_session(const char *exec) {
     JsonBuilder *b = json_builder_new();
     json_builder_begin_object(b);
@@ -308,6 +316,7 @@ static void submit_password(void) {
     render_all();
     wl_display_flush(display);
     if (preview) { snprintf(status_text, sizeof status_text, "Preview"); render_all(); return; }
+    awaiting_auth = true;
     greetd_create_session(users[sel_user].username);
 }
 
@@ -341,14 +350,22 @@ static void greetd_handle(void) {
                     memset(pending_password, 0, sizeof pending_password);
                 }
             } else if (g_strcmp0(type, "success") == 0) {
-                if (n_sessions > 0) greetd_start_session(sessions[sel_session].exec);
-                wl_display_flush(display);
-                running = false;
+                if (awaiting_auth) {
+                    awaiting_auth = false;
+                    if (n_sessions > 0) greetd_start_session(sessions[sel_session].exec);
+                    wl_display_flush(display);
+                    running = false;
+                }
             } else if (g_strcmp0(type, "error") == 0) {
                 const char *desc = json_object_has_member(root, "description")
                     ? json_object_get_string_member(root, "description") : "Authentication failed";
                 snprintf(status_text, sizeof status_text, "%s", desc);
                 status_error = true;
+                awaiting_auth = false;
+                greetd_cancel_session();
+                memset(password, 0, sizeof password);
+                memset(pending_password, 0, sizeof pending_password);
+                password_len = 0;
                 render_all();
             }
         }
@@ -618,6 +635,7 @@ static void kb_key(void *data, struct wl_keyboard *kb, uint32_t serial,
     if (n > 0 && (unsigned char)buf[0] >= 0x20 && password_len + n < sizeof password - 1) {
         memcpy(password + password_len, buf, n);
         password_len += n;
+        password[password_len] = '\0';
         status_text[0] = '\0';
         render_all();
     }
